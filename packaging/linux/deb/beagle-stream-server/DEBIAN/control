@@ -4,4 +4,5 @@ Conflicts: sunshine
 Provides: sunshine
 Replaces: sunshine
 Architecture: amd64
+Maintainer: Beagle OS
 Description: BeagleStream Server - Sunshine fork with Beagle Control Plane integration

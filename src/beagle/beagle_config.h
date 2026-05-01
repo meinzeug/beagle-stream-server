@@ -14,7 +14,6 @@ struct BeagleConfig {
 };
 
 BeagleConfig load_config();
-
 bool detect_wireguard_active();
 
 }  // namespace beagle

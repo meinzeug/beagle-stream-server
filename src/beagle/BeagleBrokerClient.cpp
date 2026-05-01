@@ -20,10 +20,13 @@ std::string join_url(const std::string &base, const std::string &path) {
   if (base.empty()) {
     return path;
   }
-  if (base.back() == '/' && !path.empty() && path.front() == '/') {
+  if (path.empty()) {
+    return base;
+  }
+  if (base.back() == '/' && path.front() == '/') {
     return base.substr(0, base.size() - 1) + path;
   }
-  if (base.back() != '/' && !path.empty() && path.front() != '/') {
+  if (base.back() != '/' && path.front() != '/') {
     return base + "/" + path;
   }
   return base + path;
@@ -46,7 +49,7 @@ BeagleBrokerClient::~BeagleBrokerClient() {
 }
 
 std::string BeagleBrokerClient::http_get(const std::string &path, long *status_code) {
-  CURL *curl = curl_easy_init();
+  CURL *curl = curl_easy_init();  // NOSONAR
   if (!curl) {
     BOOST_LOG(warning) << "Beagle broker HTTP init failed";
     return {};
@@ -63,7 +66,8 @@ std::string BeagleBrokerClient::http_get(const std::string &path, long *status_c
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_response);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
   if (cfg_.tls_insecure) {
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
@@ -84,11 +88,16 @@ std::string BeagleBrokerClient::http_get(const std::string &path, long *status_c
     return {};
   }
 
+  if (!http_success(code)) {
+    BOOST_LOG(warning) << "Beagle broker GET returned HTTP " << code << " for path=" << path;
+    return {};
+  }
+
   return response;
 }
 
 std::string BeagleBrokerClient::http_post(const std::string &path, const std::string &body, long *status_code) {
-  CURL *curl = curl_easy_init();
+  CURL *curl = curl_easy_init();  // NOSONAR
   if (!curl) {
     BOOST_LOG(warning) << "Beagle broker HTTP init failed";
     return {};
@@ -108,7 +117,8 @@ std::string BeagleBrokerClient::http_post(const std::string &path, const std::st
   curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(body.size()));
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_response);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
   if (cfg_.tls_insecure) {
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
@@ -129,6 +139,11 @@ std::string BeagleBrokerClient::http_post(const std::string &path, const std::st
     return {};
   }
 
+  if (!http_success(code)) {
+    BOOST_LOG(warning) << "Beagle broker POST returned HTTP " << code << " for path=" << path;
+    return {};
+  }
+
   return response;
 }
 
@@ -136,7 +151,7 @@ bool BeagleBrokerClient::register_with_control_plane(const std::string &host, in
   int vm_id = 0;
   try {
     vm_id = std::stoi(cfg_.vm_id);
-  } catch (const std::exception &e) {
+  } catch (const std::exception &) {
     BOOST_LOG(warning) << "Beagle registration skipped: invalid VM id";
     return false;
   }
@@ -146,7 +161,7 @@ bool BeagleBrokerClient::register_with_control_plane(const std::string &host, in
     {"stream_server_id", cfg_.stream_server_id},
     {"host", host},
     {"port", port},
-    {"wireguard_active", cfg_.wireguard_active},
+    {"wireguard_active", detect_wireguard_active()},
     {"server_version", PROJECT_VERSION},
     {"capabilities", nlohmann::json::object()},
   };
@@ -168,14 +183,14 @@ void BeagleBrokerClient::fetch_config(ConfigCallback on_config) {
 
   try {
     const auto json = nlohmann::json::parse(body);
-    const auto policy = json.value("policy", nlohmann::json::object());
+    const auto config = json.at("config");
+    const auto policy = config.at("policy");
     on_config(
       policy.value("max_fps", 60),
       policy.value("max_bitrate_mbps", 20),
-      policy.value("resolution", "1920x1080"),
-      policy.value("codec", "h264"),
-      policy.value("network_mode", "vpn_preferred")
-    );
+      policy.value("resolution", std::string {"1920x1080"}),
+      policy.value("codec", std::string {"h264"}),
+      policy.value("network_mode", std::string {"vpn_preferred"}));
   } catch (const std::exception &e) {
     BOOST_LOG(warning) << "Beagle config parse failed: " << e.what();
   }
@@ -203,11 +218,11 @@ void BeagleBrokerClient::report_event(const std::string &event_type, const std::
 
 void BeagleBrokerClient::start_config_refresh(ConfigCallback on_config) {
   stop_config_refresh();
-  stop_refresh_ = false;
+  stop_refresh_.store(false, std::memory_order_relaxed);
   refresh_thread_ = std::thread([this, on_config = std::move(on_config)]() {
-    while (!stop_refresh_) {
+    while (!stop_refresh_.load(std::memory_order_relaxed)) {
       fetch_config(on_config);
-      for (int i = 0; i < 60 && !stop_refresh_; ++i) {
+      for (int i = 0; i < 60 && !stop_refresh_.load(std::memory_order_relaxed); ++i) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
       }
     }
@@ -215,7 +230,7 @@ void BeagleBrokerClient::start_config_refresh(ConfigCallback on_config) {
 }
 
 void BeagleBrokerClient::stop_config_refresh() {
-  stop_refresh_ = true;
+  stop_refresh_.store(true, std::memory_order_relaxed);
   if (refresh_thread_.joinable()) {
     refresh_thread_.join();
   }

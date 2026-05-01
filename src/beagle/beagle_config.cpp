@@ -23,8 +23,12 @@ std::string trim(std::string value) {
   return value;
 }
 
-bool truthy(const std::string &value) {
-  return value == "1" || value == "true" || value == "TRUE" || value == "yes" || value == "YES";
+bool truthy(std::string value) {
+  value = trim(std::move(value));
+  std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+    return static_cast<char>(std::tolower(ch));
+  });
+  return value == "1" || value == "true" || value == "yes" || value == "on";
 }
 
 std::unordered_map<std::string, std::string> read_env_file() {
@@ -36,7 +40,7 @@ std::unordered_map<std::string, std::string> read_env_file() {
 
   std::string line;
   while (std::getline(file, line)) {
-    line = trim(line);
+    line = trim(std::move(line));
     if (line.empty() || line[0] == '#') {
       continue;
     }
@@ -51,7 +55,9 @@ std::unordered_map<std::string, std::string> read_env_file() {
     if (value.size() >= 2 && ((value.front() == '"' && value.back() == '"') || (value.front() == '\'' && value.back() == '\''))) {
       value = value.substr(1, value.size() - 2);
     }
-    values[key] = value;
+    if (!key.empty()) {
+      values[key] = value;
+    }
   }
 
   return values;
@@ -59,11 +65,11 @@ std::unordered_map<std::string, std::string> read_env_file() {
 
 std::string get_value(const std::unordered_map<std::string, std::string> &values, const std::string &key) {
   if (const char *env = std::getenv(key.c_str())) {
-    return env;
+    return trim(env);
   }
 
   if (auto it = values.find(key); it != values.end()) {
-    return it->second;
+    return trim(it->second);
   }
 
   return {};

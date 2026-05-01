@@ -15,6 +15,7 @@
 
 // local includes
 #include "confighttp.h"
+#include "beagle/BeagleBrokerClient.h"
 #include "display_device.h"
 #include "entry_handler.h"
 #include "globals.h"

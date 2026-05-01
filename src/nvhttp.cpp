@@ -6,6 +6,7 @@
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 
 // standard includes
+#include <cctype>
 #include <filesystem>
 #include <format>
 #include <string>
@@ -20,6 +21,7 @@
 #include <Simple-Web-Server/server_http.hpp>
 
 // local includes
+#include "beagle/BeagleAuth.h"
 #include "config.h"
 #include "display_device.h"
 #include "file_handler.h"

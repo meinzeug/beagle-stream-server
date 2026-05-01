@@ -22,6 +22,7 @@ extern "C" {
 #include <boost/bind.hpp>
 
 // local includes
+#include "beagle/BeagleBrokerClient.h"
 #include "config.h"
 #include "globals.h"
 #include "input.h"
@@ -1109,11 +1110,22 @@ namespace rtsp_stream {
 
     if (stream::session::start(*stream_session, sock.remote_endpoint().address().to_string())) {
       BOOST_LOG(error) << "Failed to start a streaming session"sv;
+#ifdef BEAGLE_INTEGRATION
+      if (beagle::g_broker) {
+        beagle::g_broker->report_event("session.error", "failure", sock.remote_endpoint().address().to_string());
+      }
+#endif
 
       server->remove(stream_session);
       respond(sock, session, &option, 500, "Internal Server Error", req->sequenceNumber, {});
       return;
     }
+
+#ifdef BEAGLE_INTEGRATION
+    if (beagle::g_broker) {
+      beagle::g_broker->report_event("session.start", "success", sock.remote_endpoint().address().to_string());
+    }
+#endif
 
     respond(sock, session, &option, 200, "OK", req->sequenceNumber, {});
   }
