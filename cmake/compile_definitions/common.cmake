@@ -121,6 +121,17 @@ set(SUNSHINE_TARGET_FILES
         "${CMAKE_SOURCE_DIR}/src/rswrapper.c"
         ${PLATFORM_TARGET_FILES})
 
+if(BEAGLE_INTEGRATION)
+    list(APPEND SUNSHINE_TARGET_FILES
+            "${CMAKE_SOURCE_DIR}/src/beagle/beagle_config.cpp"
+            "${CMAKE_SOURCE_DIR}/src/beagle/beagle_config.h"
+            "${CMAKE_SOURCE_DIR}/src/beagle/BeagleBrokerClient.cpp"
+            "${CMAKE_SOURCE_DIR}/src/beagle/BeagleBrokerClient.h"
+            "${CMAKE_SOURCE_DIR}/src/beagle/BeagleAuth.cpp"
+            "${CMAKE_SOURCE_DIR}/src/beagle/BeagleAuth.h")
+    list(APPEND SUNSHINE_DEFINITIONS BEAGLE_INTEGRATION)
+endif()
+
 if(NOT SUNSHINE_ASSETS_DIR_DEF)
     set(SUNSHINE_ASSETS_DIR_DEF "${SUNSHINE_ASSETS_DIR}")
 endif()

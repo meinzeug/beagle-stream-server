@@ -21,11 +21,17 @@
 #include "httpcommon.h"
 #include "logging.h"
 #include "main.h"
+#include "network.h"
 #include "nvhttp.h"
 #include "process.h"
 #include "system_tray.h"
 #include "upnp.h"
 #include "video.h"
+
+#ifdef BEAGLE_INTEGRATION
+  #include "beagle/BeagleBrokerClient.h"
+  #include "beagle/beagle_config.h"
+#endif
 
 extern "C" {
 #include "rswrapper.h"
@@ -374,6 +380,24 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
+#ifdef BEAGLE_INTEGRATION
+  {
+    auto bcfg = beagle::load_config();
+    if (!bcfg.control_plane_url.empty() && !bcfg.api_token.empty() && !bcfg.vm_id.empty()) {
+      beagle::g_broker = new beagle::BeagleBrokerClient(bcfg);
+      auto ip = config::nvhttp.external_ip.empty() ? "127.0.0.1" : config::nvhttp.external_ip;
+      auto port = static_cast<int>(net::map_port(nvhttp::PORT_HTTP));
+      beagle::g_broker->register_with_control_plane(ip, port);
+      beagle::g_broker->start_config_refresh([](int fps, int bitrate, const std::string &res, const std::string &codec, const std::string &net_mode) {
+        BOOST_LOG(info) << "Beagle config: fps=" << fps << " bitrate=" << bitrate << " resolution=" << res << " codec=" << codec << " net_mode=" << net_mode;
+      });
+      BOOST_LOG(info) << "Beagle broker active for VM " << bcfg.vm_id;
+    } else {
+      BOOST_LOG(info) << "Beagle broker not configured, standalone mode";
+    }
+  }
+#endif
+
   std::unique_ptr<platf::deinit_t> mDNS;
   auto sync_mDNS = std::async(std::launch::async, [&mDNS]() {
     mDNS = platf::publish::start();
@@ -420,6 +444,15 @@ int main(int argc, char *argv[]) {
   httpThread.join();
   configThread.join();
   rtspThread.join();
+
+#ifdef BEAGLE_INTEGRATION
+  if (beagle::g_broker) {
+    beagle::g_broker->report_event("session.stop", "success");
+    beagle::g_broker->stop_config_refresh();
+    delete beagle::g_broker;
+    beagle::g_broker = nullptr;
+  }
+#endif
 
   task_pool.stop();
   task_pool.join();

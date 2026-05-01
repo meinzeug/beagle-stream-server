@@ -638,6 +638,7 @@ namespace nvhttp {
       return false;
     }
 
+#ifndef BEAGLE_INTEGRATION
     // ensure pin is 4 digits
     if (pin.size() != 4) {
       tree.put("root.paired", 0);
@@ -656,6 +657,7 @@ namespace nvhttp {
       tree.put("root.<xmlattr>.status_message", "Pin must be numeric");
       return false;
     }
+#endif
 
     auto &sess = std::begin(map_id_sess)->second;
     getservercert(sess, tree, pin);

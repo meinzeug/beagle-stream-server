@@ -1,0 +1,7 @@
+Package: beagle-stream-server
+Version: 1.0.0
+Conflicts: sunshine
+Provides: sunshine
+Replaces: sunshine
+Architecture: amd64
+Description: BeagleStream Server - Sunshine fork with Beagle Control Plane integration

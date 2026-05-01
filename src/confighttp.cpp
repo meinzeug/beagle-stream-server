@@ -45,6 +45,10 @@
 #include "utility.h"
 #include "uuid.h"
 
+#ifdef BEAGLE_INTEGRATION
+  #include "beagle/BeagleAuth.h"
+#endif
+
 using namespace std::literals;
 
 namespace confighttp {
@@ -1342,6 +1346,11 @@ namespace confighttp {
       const std::string name = input_tree.value("name", "");
       const std::string pin = input_tree.value("pin", "");
 
+#ifdef BEAGLE_INTEGRATION
+      output_tree["status"] = beagle::accept_pairing_token(pin, name);
+      send_response(response, output_tree);
+      return;
+#else
       int _pin = 0;
       _pin = std::stoi(pin);
       if (_pin < 0 || _pin > 9999) {
@@ -1350,6 +1359,7 @@ namespace confighttp {
 
       output_tree["status"] = nvhttp::pin(pin, name);
       send_response(response, output_tree);
+#endif
     } catch (std::exception &e) {
       BOOST_LOG(warning) << "SavePin: "sv << e.what();
       bad_request(response, request, e.what());
