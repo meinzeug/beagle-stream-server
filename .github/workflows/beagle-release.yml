@@ -46,6 +46,7 @@ jobs:
             libssl-dev \
             libva-dev \
             libvdpau-dev \
+            libvulkan-dev \
             libwayland-dev \
             libx11-dev \
             libx11-xcb-dev \
