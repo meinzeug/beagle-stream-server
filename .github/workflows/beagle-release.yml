@@ -31,6 +31,8 @@ jobs:
             ca-certificates \
             cmake \
             curl \
+            dpkg-dev \
+            fakeroot \
             glslang-tools \
             git \
             libayatana-appindicator3-dev \
@@ -86,7 +88,7 @@ jobs:
 
       - name: Package DEB
         run: |
-          cmake --build build/beagle-release --target package
+          cpack -G DEB --config build/beagle-release/CPackConfig.cmake
           mkdir -p dist
           deb="$(find build/beagle-release/cpack_artifacts -maxdepth 1 -type f -name '*.deb' | head -n 1)"
           test -n "$deb"
