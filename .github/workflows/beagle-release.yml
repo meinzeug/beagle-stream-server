@@ -1,0 +1,111 @@
+---
+name: BeagleStream Server Release
+
+on:
+  push:
+    branches:
+      - beagle/phase-a
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: beagle-stream-server-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            cmake \
+            curl \
+            git \
+            libayatana-appindicator3-dev \
+            libcap-dev \
+            libcurl4-openssl-dev \
+            libdrm-dev \
+            libevdev-dev \
+            libgbm-dev \
+            libminiupnpc-dev \
+            libnotify-dev \
+            libnuma-dev \
+            libopus-dev \
+            libpulse-dev \
+            libssl-dev \
+            libva-dev \
+            libvdpau-dev \
+            libwayland-dev \
+            libx11-dev \
+            libx11-xcb-dev \
+            libxcb1-dev \
+            libxcb-dri3-dev \
+            libxcb-icccm4-dev \
+            libxcb-image0-dev \
+            libxcb-keysyms1-dev \
+            libxcb-randr0-dev \
+            libxcb-render-util0-dev \
+            libxcb-shape0-dev \
+            libxcb-shm0-dev \
+            libxcb-xfixes0-dev \
+            libxfixes-dev \
+            libxrandr-dev \
+            libxtst-dev \
+            ninja-build \
+            nodejs \
+            npm \
+            pkg-config
+
+      - name: Configure
+        run: |
+          cmake -S . -B build/beagle-release -G Ninja \
+            -DBEAGLE_INTEGRATION=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_DOCS=OFF \
+            -DSUNSHINE_ENABLE_CUDA=OFF \
+            -DCUDA_FAIL_ON_MISSING=OFF \
+            -DSUNSHINE_ENABLE_PORTAL=OFF \
+            -DSUNSHINE_ENABLE_TRAY=ON
+
+      - name: Build
+        run: cmake --build build/beagle-release --target sunshine -j"$(nproc)"
+
+      - name: Package DEB
+        run: |
+          cmake --build build/beagle-release --target package
+          mkdir -p dist
+          deb="$(find build/beagle-release/cpack_artifacts -maxdepth 1 -type f -name '*.deb' | head -n 1)"
+          test -n "$deb"
+          cp "$deb" "dist/beagle-stream-server-${GITHUB_SHA::7}-ubuntu-24.04-amd64.deb"
+          cp "$deb" "dist/beagle-stream-server-latest-ubuntu-24.04-amd64.deb"
+          sha256sum dist/*.deb > dist/SHA256SUMS
+          cat dist/SHA256SUMS
+
+      - name: Publish mutable Beagle phase release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="beagle-phase-a"
+          title="BeagleStream Server Phase A"
+          notes="Mutable BeagleStream Phase A server package build from ${GITHUB_SHA}."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" --clobber dist/*.deb dist/SHA256SUMS
+            gh release edit "$tag" --title "$title" --notes "$notes" --prerelease
+          else
+            gh release create "$tag" dist/*.deb dist/SHA256SUMS \
+              --title "$title" \
+              --notes "$notes" \
+              --prerelease
+          fi

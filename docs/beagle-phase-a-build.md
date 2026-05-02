@@ -70,3 +70,17 @@ cmake --build build/beagle-check --target sunshine -j"$(nproc)"
 Runtime configuration is read from `/etc/beagle/stream-server.env`. Tokens must
 not be committed. TLS verification is enabled by default; only set
 `BEAGLE_TLS_INSECURE=1` for local test systems.
+
+## Release DEB
+
+The `BeagleStream Server Release` workflow runs on `beagle/phase-a` pushes and
+publishes a mutable prerelease named `beagle-phase-a`.
+
+Stable Beagle OS VM guest-prep URL:
+
+```text
+https://github.com/meinzeug/beagle-stream-server/releases/download/beagle-phase-a/beagle-stream-server-latest-ubuntu-24.04-amd64.deb
+```
+
+Beagle OS VM provisioning tries this package first and falls back to the
+upstream Sunshine `.deb` only if this mutable Phase A asset is not available.
