@@ -1911,6 +1911,7 @@ namespace stream {
       }
 
       session.shutdown_event->raise(true);
+      session.controlEnd.raise(true);
     }
 
     void join(session_t &session) {

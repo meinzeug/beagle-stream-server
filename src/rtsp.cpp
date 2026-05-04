@@ -14,6 +14,7 @@ extern "C" {
 #include <cctype>
 #include <format>
 #include <set>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 
@@ -1108,26 +1109,29 @@ namespace rtsp_stream {
     auto stream_session = stream::session::alloc(config, session);
     server->insert(stream_session);
 
-    if (stream::session::start(*stream_session, sock.remote_endpoint().address().to_string())) {
-      BOOST_LOG(error) << "Failed to start a streaming session"sv;
+    const auto client_addr = sock.remote_endpoint().address().to_string();
+    BOOST_LOG(info) << "Beagle RTSP ANNOUNCE responding before async stream start"sv;
+    respond(sock, session, &option, 200, "OK", req->sequenceNumber, {});
+
+    std::thread {[server, stream_session, client_addr]() {
+      if (stream::session::start(*stream_session, client_addr)) {
+        BOOST_LOG(error) << "Failed to start a streaming session"sv;
+#ifdef BEAGLE_INTEGRATION
+        if (beagle::g_broker) {
+          beagle::g_broker->report_event("session.error", "failure", client_addr);
+        }
+#endif
+
+        server->remove(stream_session);
+        return;
+      }
+
 #ifdef BEAGLE_INTEGRATION
       if (beagle::g_broker) {
-        beagle::g_broker->report_event("session.error", "failure", sock.remote_endpoint().address().to_string());
+        beagle::g_broker->report_event("session.start", "success", client_addr);
       }
 #endif
-
-      server->remove(stream_session);
-      respond(sock, session, &option, 500, "Internal Server Error", req->sequenceNumber, {});
-      return;
-    }
-
-#ifdef BEAGLE_INTEGRATION
-    if (beagle::g_broker) {
-      beagle::g_broker->report_event("session.start", "success", sock.remote_endpoint().address().to_string());
-    }
-#endif
-
-    respond(sock, session, &option, 200, "OK", req->sequenceNumber, {});
+    }}.detach();
   }
 
   void cmd_play(rtsp_server_t *server, tcp::socket &sock, launch_session_t &session, msg_t &&req) {

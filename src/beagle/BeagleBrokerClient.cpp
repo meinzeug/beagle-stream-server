@@ -32,6 +32,14 @@ std::string join_url(const std::string &base, const std::string &path) {
   return base + path;
 }
 
+std::string append_query_param(const std::string &url, const std::string &key, const std::string &value) {
+  if (url.empty() || key.empty() || value.empty()) {
+    return url;
+  }
+  const char separator = url.find('?') == std::string::npos ? '?' : '&';
+  return url + separator + key + "=" + value;
+}
+
 bool http_success(long status_code) {
   return status_code >= 200 && status_code < 300;
 }
@@ -61,7 +69,10 @@ std::string BeagleBrokerClient::http_get(const std::string &path, long *status_c
   headers = curl_slist_append(headers, token_header.c_str());
   headers = curl_slist_append(headers, "Content-Type: application/json");
 
-  const auto url = join_url(cfg_.control_plane_url, path);
+  auto url = join_url(cfg_.control_plane_url, path);
+  if (path.find("/config") != std::string::npos) {
+    url = append_query_param(url, "access_token", cfg_.api_token);
+  }
   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_response);

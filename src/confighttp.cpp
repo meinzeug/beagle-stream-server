@@ -1366,6 +1366,42 @@ namespace confighttp {
     }
   }
 
+  void savePairToken(const resp_https_t &response, const req_https_t &request) {
+    if (!check_content_type(response, request, "application/json")) {
+      return;
+    }
+    if (!authenticate(response, request)) {
+      return;
+    }
+
+    std::string client_id = get_client_id(request);
+    if (!validate_csrf_token(response, request, client_id)) {
+      return;
+    }
+
+    print_req(request);
+
+    std::stringstream ss;
+    ss << request->content.rdbuf();
+    try {
+      nlohmann::json output_tree;
+      nlohmann::json input_tree = nlohmann::json::parse(ss);
+      const std::string name = input_tree.value("name", "");
+      const std::string token = input_tree.value("token", "");
+
+#ifdef BEAGLE_INTEGRATION
+      output_tree["status"] = beagle::accept_pairing_token(token, name);
+      send_response(response, output_tree);
+      return;
+#else
+      bad_request(response, request, "Token pairing endpoint requires BEAGLE_INTEGRATION");
+#endif
+    } catch (std::exception &e) {
+      BOOST_LOG(warning) << "SavePairToken: "sv << e.what();
+      bad_request(response, request, e.what());
+    }
+  }
+
   /**
    * @brief Reset the display device persistence.
    * @param response The HTTP response object.
@@ -1788,6 +1824,7 @@ namespace confighttp {
     server.resource["^/api/csrf-token$"]["GET"] = getCSRFToken;
     server.resource["^/api/password$"]["POST"] = savePassword;
     server.resource["^/api/pin$"]["POST"] = savePin;
+    server.resource["^/api/pair-token$"]["POST"] = savePairToken;
     server.resource["^/api/logs$"]["GET"] = getLogs;
     server.resource["^/api/reset-display-device-persistence$"]["POST"] = resetDisplayDevicePersistence;
     server.resource["^/api/restart$"]["POST"] = restart;

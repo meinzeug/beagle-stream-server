@@ -156,27 +156,30 @@ namespace platf {
       }
 
       // May be set if running under a systemd service with the ConfigurationDirectory= option set.
+      constexpr auto beagle_config_dir = "beagle-stream-server"sv;
+      constexpr auto legacy_config_dir = "sunshine"sv;
+
       if ((dir = getenv("CONFIGURATION_DIRECTORY")) != nullptr && strlen(dir) > 0) {
         found = true;
-        config_path = fs::path(dir) / "sunshine"sv;
+        config_path = fs::path(dir) / beagle_config_dir;
       }
       // Otherwise, follow the XDG base directory specification:
       // https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
       if (!found && (dir = getenv("XDG_CONFIG_HOME")) != nullptr && strlen(dir) > 0) {
         found = true;
-        config_path = fs::path(dir) / "sunshine"sv;
+        config_path = fs::path(dir) / beagle_config_dir;
       }
       // As a last resort, use the home directory
       if (!found) {
         migrate_config = false;
-        config_path = fs::path(homedir) / ".config/sunshine"sv;
+        config_path = fs::path(homedir) / ".config" / beagle_config_dir;
       }
 
       // migrate from the old config location if necessary
       migrate_envvar = getenv("SUNSHINE_MIGRATE_CONFIG");
       if (migrate_config && found && migrate_envvar && strcmp(migrate_envvar, "1") == 0) {
         std::error_code ec;
-        fs::path old_config_path = fs::path(homedir) / ".config/sunshine"sv;
+        fs::path old_config_path = fs::path(homedir) / ".config" / legacy_config_dir;
         if (old_config_path != config_path && fs::exists(old_config_path, ec)) {
           if (!fs::exists(config_path, ec)) {
             std::cout << "Migrating config from "sv << old_config_path << " to "sv << config_path << std::endl;
