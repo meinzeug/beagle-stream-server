@@ -593,6 +593,10 @@ namespace stream {
           break;
         case ENET_EVENT_TYPE_CONNECT:
           BOOST_LOG(info) << "CLIENT CONNECTED"sv;
+          // Raise ENet peer timeout to tolerate brief WireGuard re-handshake gaps and VPN path
+          // jitter. The default max of 30 s is too short for tunnelled paths where a re-handshake
+          // can stall for several seconds. 90 s aligns with the app-level ping_timeout (120 s).
+          enet_peer_timeout(event.peer, 64, 5000, 90000);
           break;
         case ENET_EVENT_TYPE_DISCONNECT:
           BOOST_LOG(info) << "CLIENT DISCONNECTED"sv;
