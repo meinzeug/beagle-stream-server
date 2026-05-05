@@ -317,7 +317,12 @@ namespace platf {
     xcursor_t overlay {x11::fix::GetCursorImage(display)};
 
     if (!overlay) {
-      BOOST_LOG(error) << "Couldn't get cursor from XFixesGetCursorImage"sv;
+      static std::chrono::steady_clock::time_point last_cursor_warn;
+      auto now = std::chrono::steady_clock::now();
+      if (now - last_cursor_warn > std::chrono::seconds(30)) {
+        BOOST_LOG(warning) << "Couldn't get cursor from XFixesGetCursorImage (cursor blend skipped)"sv;
+        last_cursor_warn = now;
+      }
       return;
     }
 
