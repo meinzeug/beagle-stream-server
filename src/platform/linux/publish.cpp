@@ -441,7 +441,7 @@ namespace platf::publish {
     );
 
     if (!client) {
-      BOOST_LOG(error) << "Failed to create client: "sv << avahi::strerror(avhi_error);
+      BOOST_LOG(warning) << "mDNS (Avahi) unavailable: "sv << avahi::strerror(avhi_error) << " — network discovery disabled, streaming unaffected"sv;
       return nullptr;
     }
 
