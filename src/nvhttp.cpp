@@ -689,13 +689,17 @@ namespace nvhttp {
     print_req<T>(request);
 
     int pair_status = 0;
-    if constexpr (std::is_same_v<SunshineHTTPS, T>) {
-      auto args = request->parse_query_string();
-      auto clientID = args.find("uniqueid"s);
+    auto args = request->parse_query_string();
+    auto clientID = args.find("uniqueid"s);
 
-      if (clientID != std::end(args)) {
+    if (clientID != std::end(args)) {
+#ifdef BEAGLE_INTEGRATION
+      pair_status = 1;
+#else
+      if constexpr (std::is_same_v<SunshineHTTPS, T>) {
         pair_status = 1;
       }
+#endif
     }
 
     auto local_endpoint = request->local_endpoint();
