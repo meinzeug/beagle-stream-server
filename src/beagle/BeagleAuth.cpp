@@ -132,10 +132,8 @@ std::optional<std::string> extract_jwt_claim(const std::string &token, const std
 bool accept_pairing_token(const std::string &token, const std::string &name) {
   std::string pairing_value;
 
-  // Prefer the token-native secret claim, then compatibility pin claim.
+  // Token-only path: accept the beagle pairing_secret claim.
   if (auto claim = extract_jwt_claim(token, "pairing_secret"); claim.has_value() && !claim->empty()) {
-    pairing_value = *claim;
-  } else if (auto claim = extract_jwt_claim(token, "pairing_pin"); claim.has_value() && !claim->empty()) {
     pairing_value = *claim;
   }
 

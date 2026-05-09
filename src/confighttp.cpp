@@ -1347,9 +1347,10 @@ namespace confighttp {
       const std::string pin = input_tree.value("pin", "");
 
 #ifdef BEAGLE_INTEGRATION
-      output_tree["status"] = beagle::accept_pairing_token(pin, name);
-      send_response(response, output_tree);
-      return;
+      (void) name;
+      (void) pin;
+  bad_request(response, request, "PIN pairing endpoint disabled; use /api/pair-token");
+  return;
 #else
       int _pin = 0;
       _pin = std::stoi(pin);
