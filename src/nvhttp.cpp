@@ -6,9 +6,13 @@
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 
 // standard includes
+#include <algorithm>
 #include <cctype>
+#include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <format>
+#include <mutex>
 #include <string>
 #include <utility>
 
@@ -140,6 +144,60 @@ namespace nvhttp {
   struct client_t {
     std::vector<named_cert_t> named_devices;
   };
+
+  struct pending_pair_request_t {
+    std::string pin;
+    std::string name;
+    std::chrono::steady_clock::time_point expires_at {};
+    bool valid = false;
+  };
+
+  int pending_pair_request_ttl_seconds() {
+    constexpr int default_ttl = 30;
+    constexpr int min_ttl = 1;
+    constexpr int max_ttl = 300;
+    const char *raw = std::getenv("BEAGLE_PENDING_PAIRING_TTL_SECONDS");
+    if (!raw || !*raw) {
+      return default_ttl;
+    }
+
+    try {
+      const int parsed = std::stoi(raw);
+      return std::clamp(parsed, min_ttl, max_ttl);
+    } catch (...) {
+      return default_ttl;
+    }
+  }
+
+  std::mutex g_pending_pair_request_mutex;
+  pending_pair_request_t g_pending_pair_request;
+
+  void store_pending_pair_request(std::string pin, std::string name) {
+    if (pin.empty()) {
+      return;
+    }
+    std::scoped_lock lock(g_pending_pair_request_mutex);
+    g_pending_pair_request.pin = std::move(pin);
+    g_pending_pair_request.name = std::move(name);
+    g_pending_pair_request.expires_at = std::chrono::steady_clock::now() + std::chrono::seconds(pending_pair_request_ttl_seconds());
+    g_pending_pair_request.valid = true;
+  }
+
+  bool consume_pending_pair_request(std::string &pin, std::string &name) {
+    std::scoped_lock lock(g_pending_pair_request_mutex);
+    if (!g_pending_pair_request.valid) {
+      return false;
+    }
+    if (std::chrono::steady_clock::now() >= g_pending_pair_request.expires_at) {
+      g_pending_pair_request = pending_pair_request_t {};
+      return false;
+    }
+
+    pin = std::move(g_pending_pair_request.pin);
+    name = std::move(g_pending_pair_request.name);
+    g_pending_pair_request = pending_pair_request_t {};
+    return !pin.empty();
+  }
 
   // uniqueID, session
   std::unordered_map<std::string, pair_session_t> map_id_sess;
@@ -596,6 +654,17 @@ namespace nvhttp {
           getservercert(ptr->second, tree, pin);
           return;
         } else {
+#ifdef BEAGLE_INTEGRATION
+          std::string pending_pin;
+          std::string pending_name;
+          if (consume_pending_pair_request(pending_pin, pending_name)) {
+            getservercert(ptr->second, tree, pending_pin);
+            if (!pending_name.empty()) {
+              ptr->second.client.name = std::move(pending_name);
+            }
+            return;
+          }
+#endif
 #if defined SUNSHINE_TRAY && SUNSHINE_TRAY >= 1
           system_tray::update_tray_require_pin();
 #endif
@@ -637,7 +706,15 @@ namespace nvhttp {
   bool pin(std::string pin, std::string name) {
     pt::ptree tree;
     if (map_id_sess.empty()) {
+#ifdef BEAGLE_INTEGRATION
+      // Manager-triggered token exchange can arrive before the client starts
+      // the pairing handshake. Cache for a short time and consume as soon as
+      // getservercert creates a new pair session.
+      store_pending_pair_request(std::move(pin), std::move(name));
+      return true;
+#else
       return false;
+#endif
     }
 
 #ifndef BEAGLE_INTEGRATION
