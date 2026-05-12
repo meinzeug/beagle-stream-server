@@ -70,6 +70,8 @@ jobs:
             nodejs \
             npm \
             pkg-config
+              libpipewire-0.3-dev \
+              libinput-dev \
 
       - name: Configure
         run: |
