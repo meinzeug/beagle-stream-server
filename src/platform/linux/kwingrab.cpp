@@ -683,7 +683,7 @@ namespace platf {
   }
 
   std::vector<std::string> kwin_display_names() {
-    if (has_elevated_privileges(false)) {
+    if (has_elevated_privileges()) {
       // We're still in the probing phase of Sunshine startup. Dropping portal security early will break KMS.
       // Just return a dummy screen for now. Display re-enumeration after encoder probing will yield full result.
       std::vector<std::string> display_names;
