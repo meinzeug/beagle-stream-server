@@ -12,14 +12,11 @@ option(BUILD_TESTS "Build tests" ON)
 option(NPM_OFFLINE "Use offline npm packages. You must ensure packages are in your npm cache." OFF)
 
 option(BUILD_WERROR "Enable -Werror flag." OFF)
-option(BEAGLE_INTEGRATION "Enable Beagle Control Plane integration" OFF)
 
 # if this option is set, the build will exit after configuring special package configuration files
 option(SUNSHINE_CONFIGURE_ONLY "Configure special files only, then exit." OFF)
 
 option(SUNSHINE_ENABLE_TRAY "Enable system tray icon." ON)
-
-option(BEAGLE_INTEGRATION "Enable Beagle Control Plane integration" OFF)
 
 option(SUNSHINE_SYSTEM_WAYLAND_PROTOCOLS "Use system installation of wayland-protocols rather than the submodule." OFF)
 
@@ -27,10 +24,6 @@ if(APPLE)
     option(BOOST_USE_STATIC "Use static boost libraries." OFF)
 else()
     option(BOOST_USE_STATIC "Use static boost libraries." ON)
-endif()
-
-if(BEAGLE_INTEGRATION)
-    list(APPEND SUNSHINE_DEFINITIONS BEAGLE_INTEGRATION=1)
 endif()
 
 option(CUDA_FAIL_ON_MISSING "Fail the build if CUDA is not found." ON)
@@ -71,6 +64,8 @@ elseif(UNIX)  # Linux
             "Enable building wayland specific code." ON)
     option(SUNSHINE_ENABLE_X11
             "Enable X11 grab if available." ON)
+    option(SUNSHINE_ENABLE_KWIN
+            "Enable KWin ScreenCast grab if available" ON)
     option(SUNSHINE_ENABLE_PORTAL
             "Enable XDG portal grab if available" ON)
 endif()
