@@ -129,20 +129,59 @@ std::optional<std::string> extract_jwt_claim(const std::string &token, const std
 
 }  // namespace
 
+
+#ifdef BEAGLE_INTEGRATION
+#include "BeagleBrokerClient.h"
+extern BeagleBrokerClient *g_broker;
+// Token-native: akzeptiere nur gültige, signierte, nicht abgelaufene, einmalige Tokens
+bool accept_pairing_token(const std::string &token, const std::string &name) {
+  auto claim = extract_jwt_claim(token, "pairing_secret");
+  if (!claim.has_value() || claim->empty()) {
+    BOOST_LOG(warning) << "Beagle pairing rejected: missing or invalid pairing_secret claim in token";
+    return false;
+  }
+  // Token-Validierung gegen Manager/Control-Plane
+  if (!g_broker) {
+    BOOST_LOG(warning) << "Beagle pairing rejected: Control-Plane client not initialized";
+    return false;
+  }
+  nlohmann::json req_body = {
+    {"token", token},
+    {"device_name", name},
+    {"vm_id", g_broker->cfg_.vm_id}
+  };
+  long status_code = 0;
+  std::string resp = g_broker->http_post("/api/v1/streams/validate-token", req_body.dump(), &status_code);
+  if (status_code != 200 || resp.empty()) {
+    BOOST_LOG(warning) << "Beagle pairing rejected: token validation failed (HTTP " << status_code << ")";
+    return false;
+  }
+  try {
+    auto json = nlohmann::json::parse(resp);
+    if (!json.value("valid", false)) {
+      BOOST_LOG(warning) << "Beagle pairing rejected: token not valid (reason: " << json.value("reason", "unknown") << ")";
+      return false;
+    }
+    // Optional: One-Time-Use, Expiry, Revocation prüfen
+    return true;
+  } catch (const std::exception &e) {
+    BOOST_LOG(warning) << "Beagle pairing rejected: invalid response from manager: " << e.what();
+    return false;
+  }
+}
+#else
+// Legacy-Kompatibilität: Token-als-PIN
 bool accept_pairing_token(const std::string &token, const std::string &name) {
   std::string pairing_value;
-
-  // Token-only path: accept the beagle pairing_secret claim.
   if (auto claim = extract_jwt_claim(token, "pairing_secret"); claim.has_value() && !claim->empty()) {
     pairing_value = *claim;
   }
-
   if (pairing_value.empty()) {
     pairing_value = token;
   }
-
   return nvhttp::pin(pairing_value, name);
 }
+#endif
 
 bool check_vpn_policy(const std::string &network_mode, bool wireguard_active) {
   if (network_mode == "vpn_required" && !(wireguard_active || detect_wireguard_active())) {
