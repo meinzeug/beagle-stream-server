@@ -77,6 +77,7 @@ jobs:
         run: |
           cmake -S . -B build/beagle-release -G Ninja \
             -DBEAGLE_INTEGRATION=ON \
+            -DCMAKE_INSTALL_PREFIX=/usr \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTS=OFF \
             -DBUILD_DOCS=OFF \
@@ -88,10 +89,21 @@ jobs:
       - name: Build
         run: cmake --build build/beagle-release --target sunshine -j"$(nproc)"
 
+      - name: Verify Beagle binary name
+        run: |
+          test -x build/beagle-release/beagle-stream-server
+          test ! -e build/beagle-release/sunshine
+
       - name: Package DEB
         run: |
           cmake --build build/beagle-release --target web-ui -j"$(nproc)"
           cpack -G DEB --config build/beagle-release/CPackConfig.cmake
+          dpkg-deb -c build/beagle-release/cpack_artifacts/*.deb | tee /tmp/beagle-stream-server-deb-contents.txt
+          grep -q './usr/bin/beagle-stream-server$' /tmp/beagle-stream-server-deb-contents.txt
+          if grep -q './usr/bin/sunshine$' /tmp/beagle-stream-server-deb-contents.txt; then
+            echo "BeagleStream package must not install /usr/bin/sunshine" >&2
+            exit 1
+          fi
           mkdir -p dist
           deb="$(find build/beagle-release/cpack_artifacts -maxdepth 1 -type f -name '*.deb' | head -n 1)"
           test -n "$deb"
