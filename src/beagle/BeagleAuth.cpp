@@ -1,5 +1,9 @@
 #include "BeagleAuth.h"
 
+#ifdef BEAGLE_INTEGRATION
+#include "BeagleBrokerClient.h"
+#endif
+
 #include "beagle_config.h"
 #include "../logging.h"
 #include "../nvhttp.h"
@@ -8,6 +12,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+
+#include <nlohmann/json.hpp>
 
 namespace beagle {
 
@@ -131,8 +137,6 @@ std::optional<std::string> extract_jwt_claim(const std::string &token, const std
 
 
 #ifdef BEAGLE_INTEGRATION
-#include "BeagleBrokerClient.h"
-extern BeagleBrokerClient *g_broker;
 // Token-native: akzeptiere nur gültige, signierte, nicht abgelaufene, einmalige Tokens
 bool accept_pairing_token(const std::string &token, const std::string &name) {
   auto claim = extract_jwt_claim(token, "pairing_secret");
@@ -145,29 +149,7 @@ bool accept_pairing_token(const std::string &token, const std::string &name) {
     BOOST_LOG(warning) << "Beagle pairing rejected: Control-Plane client not initialized";
     return false;
   }
-  nlohmann::json req_body = {
-    {"token", token},
-    {"device_name", name},
-    {"vm_id", g_broker->cfg_.vm_id}
-  };
-  long status_code = 0;
-  std::string resp = g_broker->http_post("/api/v1/streams/validate-token", req_body.dump(), &status_code);
-  if (status_code != 200 || resp.empty()) {
-    BOOST_LOG(warning) << "Beagle pairing rejected: token validation failed (HTTP " << status_code << ")";
-    return false;
-  }
-  try {
-    auto json = nlohmann::json::parse(resp);
-    if (!json.value("valid", false)) {
-      BOOST_LOG(warning) << "Beagle pairing rejected: token not valid (reason: " << json.value("reason", "unknown") << ")";
-      return false;
-    }
-    // Optional: One-Time-Use, Expiry, Revocation prüfen
-    return true;
-  } catch (const std::exception &e) {
-    BOOST_LOG(warning) << "Beagle pairing rejected: invalid response from manager: " << e.what();
-    return false;
-  }
+  return g_broker->validate_pairing_token(token, name);
 }
 #else
 // Legacy-Kompatibilität: Token-als-PIN

@@ -56,6 +56,10 @@ BeagleBrokerClient::~BeagleBrokerClient() {
   stop_config_refresh();
 }
 
+const BeagleConfig &BeagleBrokerClient::config() const {
+  return cfg_;
+}
+
 std::string BeagleBrokerClient::http_get(const std::string &path, long *status_code) {
   CURL *curl = curl_easy_init();  // NOSONAR
   if (!curl) {
@@ -182,6 +186,33 @@ bool BeagleBrokerClient::register_with_control_plane(const std::string &host, in
   const bool ok = http_success(status_code);
   BOOST_LOG(info) << "Beagle registration: " << (ok ? "success" : "failed") << " status=" << status_code;
   return ok;
+}
+
+bool BeagleBrokerClient::validate_pairing_token(const std::string &token, const std::string &device_name) {
+  nlohmann::json body {
+    {"token", token},
+    {"device_name", device_name},
+    {"vm_id", cfg_.vm_id}
+  };
+
+  long status_code = 0;
+  const std::string response = http_post("/api/v1/streams/validate-token", body.dump(), &status_code);
+  if (status_code != 200 || response.empty()) {
+    BOOST_LOG(warning) << "Beagle pairing rejected: token validation failed (HTTP " << status_code << ")";
+    return false;
+  }
+
+  try {
+    const auto json = nlohmann::json::parse(response);
+    if (!json.value("valid", false)) {
+      BOOST_LOG(warning) << "Beagle pairing rejected: token not valid (reason: " << json.value("reason", "unknown") << ")";
+      return false;
+    }
+    return true;
+  } catch (const std::exception &e) {
+    BOOST_LOG(warning) << "Beagle pairing rejected: invalid response from manager: " << e.what();
+    return false;
+  }
 }
 
 void BeagleBrokerClient::fetch_config(ConfigCallback on_config) {

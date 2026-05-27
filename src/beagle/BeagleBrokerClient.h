@@ -21,7 +21,9 @@ public:
   explicit BeagleBrokerClient(BeagleConfig cfg);
   ~BeagleBrokerClient();
 
+  const BeagleConfig &config() const;
   bool register_with_control_plane(const std::string &host, int port);
+  bool validate_pairing_token(const std::string &token, const std::string &device_name);
   void fetch_config(ConfigCallback on_config);
   void report_event(const std::string &event_type, const std::string &outcome, const std::string &client_id = "");
   void start_config_refresh(ConfigCallback on_config);

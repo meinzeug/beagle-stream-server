@@ -34,6 +34,9 @@ endif()
 if(BUILD_WERROR)
     list(APPEND SUNSHINE_COMPILE_OPTIONS -Werror)
 endif()
+if(BEAGLE_INTEGRATION)
+    list(APPEND SUNSHINE_DEFINITIONS BEAGLE_INTEGRATION=1)
+endif()
 
 # setup assets directory
 if(NOT SUNSHINE_ASSETS_DIR)
@@ -92,6 +95,12 @@ set(SUNSHINE_TARGET_FILES
         "${CMAKE_SOURCE_DIR}/src/confighttp.h"
         "${CMAKE_SOURCE_DIR}/src/rtsp.cpp"
         "${CMAKE_SOURCE_DIR}/src/rtsp.h"
+        "${CMAKE_SOURCE_DIR}/src/beagle/BeagleAuth.cpp"
+        "${CMAKE_SOURCE_DIR}/src/beagle/BeagleAuth.h"
+        "${CMAKE_SOURCE_DIR}/src/beagle/BeagleBrokerClient.cpp"
+        "${CMAKE_SOURCE_DIR}/src/beagle/BeagleBrokerClient.h"
+        "${CMAKE_SOURCE_DIR}/src/beagle/beagle_config.cpp"
+        "${CMAKE_SOURCE_DIR}/src/beagle/beagle_config.h"
         "${CMAKE_SOURCE_DIR}/src/stream.cpp"
         "${CMAKE_SOURCE_DIR}/src/stream.h"
         "${CMAKE_SOURCE_DIR}/src/video.cpp"

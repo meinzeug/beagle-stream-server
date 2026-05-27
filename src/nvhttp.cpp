@@ -22,10 +22,14 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
+#include <nlohmann/json.hpp>
 #include <Simple-Web-Server/server_http.hpp>
 
 // local includes
 #include "beagle/BeagleAuth.h"
+#ifdef BEAGLE_INTEGRATION
+  #include "beagle/beagle_config.h"
+#endif
 #include "config.h"
 #include "display_device.h"
 #include "file_handler.h"
@@ -862,6 +866,59 @@ namespace nvhttp {
     response->close_connection_after_response = true;
   }
 
+  template<class T>
+  void beagle_status(std::shared_ptr<typename SimpleWeb::ServerBase<T>::Response> response, std::shared_ptr<typename SimpleWeb::ServerBase<T>::Request> request) {
+    print_req<T>(request);
+
+    const auto local_endpoint = request->local_endpoint();
+    const auto current_appid = proc::proc.running();
+    nlohmann::json output {
+      {"status", true},
+      {"product", "BeagleStream Server"},
+      {"appversion", VERSION},
+      {"identity", {
+        {"hostname", config::nvhttp.sunshine_name},
+        {"uniqueid", http::unique_id},
+        {"local_ip", net::addr_to_normalized_string(local_endpoint.address())}
+      }},
+      {"ports", {
+        {"http", net::map_port(PORT_HTTP)},
+        {"https", net::map_port(PORT_HTTPS)},
+        {"rtsp", net::map_port(rtsp_stream::RTSP_SETUP_PORT)}
+      }},
+      {"stream", {
+        {"state", current_appid > 0 ? "busy" : "free"},
+        {"current_appid", current_appid}
+      }},
+      {"compatibility", {
+        {"gamestream_serverinfo", true},
+        {"gfe_version", GFE_VERSION}
+      }}
+    };
+
+#ifdef BEAGLE_INTEGRATION
+    const auto beagle_config = beagle::load_config();
+    output["beagle"] = {
+      {"managed", !beagle_config.vm_id.empty()},
+      {"vm_id", beagle_config.vm_id},
+      {"stream_server_id", beagle_config.stream_server_id},
+      {"wireguard_active", beagle::detect_wireguard_active()}
+    };
+#else
+    output["beagle"] = {
+      {"managed", false},
+      {"wireguard_active", false}
+    };
+#endif
+
+    SimpleWeb::CaseInsensitiveMultimap headers;
+    headers.emplace("Content-Type", "application/json");
+    headers.emplace("X-Frame-Options", "DENY");
+    headers.emplace("Content-Security-Policy", "frame-ancestors 'none';");
+    response->write(output.dump(), headers);
+    response->close_connection_after_response = true;
+  }
+
   nlohmann::json get_all_clients() {
     nlohmann::json named_cert_nodes = nlohmann::json::array();
     client_t &client = client_root;
@@ -1248,6 +1305,7 @@ namespace nvhttp {
 
     https_server.default_resource["GET"] = not_found<SunshineHTTPS>;
     https_server.resource["^/serverinfo$"]["GET"] = serverinfo<SunshineHTTPS>;
+    https_server.resource["^/api/beagle/v1/status$"]["GET"] = beagle_status<SunshineHTTPS>;
     https_server.resource["^/pair$"]["GET"] = [&add_cert](auto resp, auto req) {
       pair<SunshineHTTPS>(add_cert, resp, req);
     };
@@ -1267,6 +1325,7 @@ namespace nvhttp {
 
     http_server.default_resource["GET"] = not_found<SimpleWeb::HTTP>;
     http_server.resource["^/serverinfo$"]["GET"] = serverinfo<SimpleWeb::HTTP>;
+    http_server.resource["^/api/beagle/v1/status$"]["GET"] = beagle_status<SimpleWeb::HTTP>;
     http_server.resource["^/pair$"]["GET"] = [&add_cert](auto resp, auto req) {
       pair<SimpleWeb::HTTP>(add_cert, resp, req);
     };
