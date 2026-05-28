@@ -691,6 +691,7 @@ function run_step_cmake() {
     "-DSUNSHINE_ENABLE_PORTAL=ON"
     "-DSUNSHINE_ENABLE_WAYLAND=ON"
     "-DSUNSHINE_ENABLE_X11=ON"
+    "-DBEAGLE_INTEGRATION=ON"
   )
 
   if [[ "$appimage_build" == 1 ]]; then
