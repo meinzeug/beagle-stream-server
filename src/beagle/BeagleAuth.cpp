@@ -149,7 +149,10 @@ bool accept_pairing_token(const std::string &token, const std::string &name) {
     BOOST_LOG(warning) << "Beagle pairing rejected: Control-Plane client not initialized";
     return false;
   }
-  return g_broker->validate_pairing_token(token, name);
+  if (!g_broker->validate_pairing_token(token, name)) {
+    return false;
+  }
+  return nvhttp::pin(claim.value(), name);
 }
 #else
 // Legacy-Kompatibilität: Token-als-PIN
