@@ -150,6 +150,9 @@ jobs:
       - build-deb
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download release artifacts
         uses: actions/download-artifact@v5
         with:
