@@ -1,12 +1,12 @@
 <div align="center">
   <img src="sunshine.png"  alt="Sunshine icon"/>
-  <h1 align="center">Sunshine</h1>
-  <h4 align="center">Self-hosted game stream host for Moonlight.</h4>
+    <h1 align="center">Beagle Stream Server</h1>
+    <h4 align="center">Self-hosted game stream host for Beagle Stream Client.</h4>
 </div>
 
 <div align="center">
-  <a href="https://github.com/LizardByte/Sunshine"><img src="https://img.shields.io/github/stars/lizardbyte/sunshine.svg?logo=github&style=for-the-badge" alt="GitHub stars"></a>
-  <a href="https://github.com/LizardByte/Sunshine/releases/latest"><img src="https://img.shields.io/github/downloads/lizardbyte/sunshine/total.svg?style=for-the-badge&logo=github" alt="GitHub Releases"></a>
+    <a href="https://github.com/meinzeug/beagle-stream-server"><img src="https://img.shields.io/github/stars/meinzeug/beagle-stream-server.svg?logo=github&style=for-the-badge" alt="GitHub stars"></a>
+    <a href="https://github.com/meinzeug/beagle-stream-server/releases/latest"><img src="https://img.shields.io/github/downloads/meinzeug/beagle-stream-server/total.svg?style=for-the-badge&logo=github" alt="GitHub Releases"></a>
   <a href="https://hub.docker.com/r/lizardbyte/sunshine"><img src="https://img.shields.io/docker/pulls/lizardbyte/sunshine.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
   <a href="https://github.com/LizardByte/Sunshine/pkgs/container/sunshine"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fipitio.github.io%2Fbackage%2FLizardByte%2FSunshine%2Fsunshine.json&query=%24.downloads&label=ghcr%20pulls&style=for-the-badge&logo=github" alt="GHCR"></a>
   <a href="https://flathub.org/apps/dev.lizardbyte.app.Sunshine"><img src="https://img.shields.io/flathub/downloads/dev.lizardbyte.app.Sunshine?style=for-the-badge&logo=flathub" alt="Flathub installs"></a>
@@ -21,13 +21,19 @@
 
 ## ℹ️ About
 
-Sunshine is a self-hosted game stream host for Moonlight.
+Beagle Stream Server is a self-hosted game stream host for Beagle Stream Client and compatible Moonlight-family clients.
 Offering low-latency, cloud gaming server capabilities with support for AMD, Intel, and Nvidia GPUs for hardware
 encoding. Software encoding is also available. You can connect to Sunshine from any Moonlight client on a variety of
 devices. A web UI is provided to allow configuration, and client pairing, from your favorite web browser. Pair from
 the local server or any mobile device.
 
-LizardByte has the full documentation hosted on [Read the Docs](https://docs.lizardbyte.dev/projects/sunshine)
+## Fork Focus
+
+- Primary runtime target: Beagle OS VMs and Beagle-managed control-plane integrations
+- Default release channel for Beagle OS automation: tag beagle-phase-a with mutable asset beagle-stream-server-latest-ubuntu-24.04-amd64.deb
+- Protocol position: compatible with Moonlight-family clients while exposing Beagle-specific integration paths
+
+LizardByte has the upstream documentation hosted on [Read the Docs](https://docs.lizardbyte.dev/projects/sunshine)
 
 * [Stable Docs](https://docs.lizardbyte.dev/projects/sunshine/latest/)
 * [Beta Docs](https://docs.lizardbyte.dev/projects/sunshine/master/)
